@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">quietly</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="capture">capture</string>
+    <string name="gallery">gallery</string>
+    <string name="map">map</string>
+</resources>
