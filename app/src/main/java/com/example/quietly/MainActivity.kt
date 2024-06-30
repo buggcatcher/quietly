@@ -3,7 +3,7 @@ package com.example.quietly
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.example.quietly.databinding.ActivityMainBinding
+import missing.namespace.databinding.ActivityMainBinding
 
 
 class MainActivity : AppCompatActivity() {

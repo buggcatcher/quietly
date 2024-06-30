@@ -19,9 +19,10 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.quietly.databinding.ActivityCaptureBinding
+import missing.namespace.databinding.ActivityMainBinding
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import missing.namespace.databinding.ActivityCaptureBinding
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
