@@ -3,6 +3,7 @@ package com.example.quietly
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.location.Location
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.Environment
@@ -19,6 +20,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.quietly.databinding.ActivityCaptureBinding
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -33,6 +36,8 @@ class CaptureActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private var mediaRecorder: MediaRecorder? = null
     private var audioFilePath: String? = null
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var currentLocation: Location? = null
 
     private val activityResultLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -44,6 +49,7 @@ class CaptureActivity : AppCompatActivity() {
                 Toast.makeText(baseContext, "Permission request denied", Toast.LENGTH_SHORT).show()
             } else {
                 startCamera()
+                getCurrentLocation()
             }
         }
 
@@ -52,9 +58,12 @@ class CaptureActivity : AppCompatActivity() {
         viewBinding = ActivityCaptureBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
 
-        // Request camera and audio permissions
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        // Request camera, audio, and location permissions
         if (allPermissionsGranted()) {
             startCamera()
+            getCurrentLocation()
         } else {
             requestPermissions()
         }
@@ -71,14 +80,17 @@ class CaptureActivity : AppCompatActivity() {
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
 
-        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US).format(System.currentTimeMillis())
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+        val metadata = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, generateFileName())
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            currentLocation?.let {
+                put(MediaStore.Images.ImageColumns.LATITUDE, it.latitude)
+                put(MediaStore.Images.ImageColumns.LONGITUDE, it.longitude)
+            }
         }
 
         val outputOptions = ImageCapture.OutputFileOptions
-            .Builder(contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            .Builder(contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, metadata)
             .build()
 
         imageCapture.takePicture(
@@ -135,6 +147,13 @@ class CaptureActivity : AppCompatActivity() {
             }
         }
 
+        // Save location data
+        currentLocation?.let { location ->
+            val locationFileName = audioFileName.replace(".m4a", "_location.txt")
+            val locationFile = File(folderPath, locationFileName)
+            locationFile.writeText("Latitude: ${location.latitude}\nLongitude: ${location.longitude}")
+        }
+
         // Stop recording after 3 seconds
         viewBinding.captureButton.postDelayed({
             mediaRecorder?.apply {
@@ -146,6 +165,11 @@ class CaptureActivity : AppCompatActivity() {
             Toast.makeText(this@CaptureActivity, msg, Toast.LENGTH_SHORT).show()
             Log.d(TAG, msg)
         }, 3000)
+    }
+
+
+    private fun generateFileName(): String {
+        return SimpleDateFormat(FILENAME_FORMAT, Locale.US).format(System.currentTimeMillis())
     }
 
     private fun startCamera() {
@@ -173,6 +197,16 @@ class CaptureActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    private fun getCurrentLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                location?.let {
+                    currentLocation = it
+                }
+            }
+        }
+    }
+
     private fun requestPermissions() {
         activityResultLauncher.launch(REQUIRED_PERMISSIONS)
     }
@@ -194,8 +228,8 @@ class CaptureActivity : AppCompatActivity() {
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.ACCESS_FINE_LOCATION
         )
     }
-
 }
